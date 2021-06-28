@@ -26,7 +26,6 @@ import numpy as np
 #         c1, c2 = (int(box[0]), int(box[1])), (int(box[2]), int(box[3]))
 #         cv2.rectangle(img, c1, c2, color, thickness=tl, lineType=cv2.LINE_AA)
 #     cv2.imwrite(file_path, img)
-    
 
 
 class CocoDetection(torchvision.datasets.CocoDetection):
@@ -38,7 +37,7 @@ class CocoDetection(torchvision.datasets.CocoDetection):
     def __getitem__(self, idx):
         img, target = super(CocoDetection, self).__getitem__(idx)
         image_id = self.ids[idx]
-        target = {'image_id': image_id, 'annotations': target}
+        target = {"image_id": image_id, "annotations": target}
         img, target = self.prepare(img, target)
         if self._transforms is not None:
             img, target = self._transforms(img, target)
@@ -74,7 +73,7 @@ class ConvertCocoPolysToMask(object):
 
         anno = target["annotations"]
 
-        anno = [obj for obj in anno if 'iscrowd' not in obj or obj['iscrowd'] == 0]
+        anno = [obj for obj in anno if "iscrowd" not in obj or obj["iscrowd"] == 0]
 
         boxes = [obj["bbox"] for obj in anno]
         # guard against no boxes via resizing
@@ -117,7 +116,9 @@ class ConvertCocoPolysToMask(object):
 
         # for conversion to coco api
         area = torch.tensor([obj["area"] for obj in anno])
-        iscrowd = torch.tensor([obj["iscrowd"] if "iscrowd" in obj else 0 for obj in anno])
+        iscrowd = torch.tensor(
+            [obj["iscrowd"] if "iscrowd" in obj else 0 for obj in anno]
+        )
         target["area"] = area[keep]
         target["iscrowd"] = iscrowd[keep]
 
@@ -129,52 +130,106 @@ class ConvertCocoPolysToMask(object):
 
 def make_coco_transforms(image_set, args):
 
-    normalize = T.Compose([
-        T.ToTensor(),
-        T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-    ])
+    normalize = T.Compose(
+        [T.ToTensor(), T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])]
+    )
 
-
-    if 'tiny' in args.backbone_name:
-        scales = [256, 272, 288, 304, 320, 336, 352, 368, 384, 400, 416, 432, 448, 464, 480, 496, 512, 528, 544, 560, 576, 592, 608]
+    if "tiny" in args.backbone_name:
+        scales = [
+            256,
+            272,
+            288,
+            304,
+            320,
+            336,
+            352,
+            368,
+            384,
+            400,
+            416,
+            432,
+            448,
+            464,
+            480,
+            496,
+            512,
+            528,
+            544,
+            560,
+            576,
+            592,
+            608,
+        ]
     else:
-        scales = [480, 496, 512, 528, 544, 560, 576, 592, 608, 624, 640, 656, 672, 688, 704, 720, 736, 752, 768, 784, 800]
+        scales = [
+            480,
+            496,
+            512,
+            528,
+            544,
+            560,
+            576,
+            592,
+            608,
+            624,
+            640,
+            656,
+            672,
+            688,
+            704,
+            720,
+            736,
+            752,
+            768,
+            784,
+            800,
+        ]
 
-
-    if image_set == 'train':
-        return T.Compose([
-            T.RandomHorizontalFlip(),
-            T.RandomSelect(
-                T.RandomResize(scales, max_size=scales[-1] * 1333 // 800),
-                T.Compose([
-                    T.RandomResize([400, 500, 600]),
-                    T.RandomSizeCrop(384, 600),
+    if image_set == "train":
+        return T.Compose(
+            [
+                T.RandomHorizontalFlip(),
+                T.RandomSelect(
                     T.RandomResize(scales, max_size=scales[-1] * 1333 // 800),
-                ])
-            ),
-            normalize,
-        ])
+                    T.Compose(
+                        [
+                            T.RandomResize([400, 500, 600]),
+                            T.RandomSizeCrop(384, 600),
+                            T.RandomResize(scales, max_size=scales[-1] * 1333 // 800),
+                        ]
+                    ),
+                ),
+                normalize,
+            ]
+        )
 
     print(args.eval_size)
 
-    if image_set == 'val':
-        return T.Compose([
-            T.RandomResize([args.eval_size], max_size=args.eval_size * 1333 // 800),
-            normalize,
-        ])
+    if image_set == "val":
+        return T.Compose(
+            [
+                T.RandomResize([args.eval_size], max_size=args.eval_size * 1333 // 800),
+                normalize,
+            ]
+        )
 
-    raise ValueError(f'unknown {image_set}')
+    raise ValueError(f"unknown {image_set}")
 
 
 def build(image_set, args):
     root = Path(args.coco_path)
-    assert root.exists(), f'provided COCO path {root} does not exist'
-    mode = 'instances'
+    assert root.exists(), f"provided COCO path {root} does not exist"
+    mode = "instances"
     PATHS = {
-        "train": (root / "train2017", root / "annotations" / f'{mode}_train2017.json'),
-        "val": (root / "val2017", root / "annotations" / f'{mode}_val2017.json'),
+        "train": (root / "train2017", root / "annotations" / f"{mode}_train2017.json"),
+        "val": (root / "val2017", root / "annotations" / f"{mode}_val2017.json"),
     }
 
     img_folder, ann_file = PATHS[image_set]
-    dataset = CocoDetection(img_folder, ann_file, transforms=make_coco_transforms(image_set, args), return_masks=False)
+    dataset = CocoDetection(
+        img_folder,
+        ann_file,
+        transforms=make_coco_transforms(image_set, args),
+        return_masks=False,
+    )
     return dataset
